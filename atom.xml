@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Silentsvv</title>
+  
+  
+  <link href="/atom.xml" rel="self"/>
+  
+  <link href="http://yoursite.com/"/>
+  <updated>2020-06-14T19:20:45.719Z</updated>
+  <id>http://yoursite.com/</id>
+  
+  <author>
+    <name>Silentsvv</name>
+    
+  </author>
+  
+  <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Vue源码解析(一): data的挂载</title>
+    <link href="http://yoursite.com/2020/06/15/Vue/vue_01/"/>
+    <id>http://yoursite.com/2020/06/15/Vue/vue_01/</id>
+    <published>2020-06-14T17:59:01.000Z</published>
+    <updated>2020-06-14T19:20:45.719Z</updated>
+    
+    <content type="html"><![CDATA[<blockquote><p>最近在看vue 2.6.11 版本的源码，特意通过文档记录来整理一下知识点</p></blockquote><h3 id="vue的源码目录"><a href="#vue的源码目录" class="headerlink" title="vue的源码目录"></a>vue的源码目录</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">src</span><br><span class="line">├── compiler        # 编译相关 </span><br><span class="line">├── core            # 核心代码 </span><br><span class="line">├── platforms       # 不同平台的支持</span><br><span class="line">├── server          # 服务端渲染</span><br><span class="line">├── sfc             # .vue 文件解析</span><br><span class="line">├── shared          # 共享代码</span><br></pre></td></tr></table></figure><p>大部分知识点主要集中于<code>code</code>目录（核心代码部分）。<br>接下来，就让我们开始进入vue的世界吧。</p><h3 id="new-Vue-做了什么"><a href="#new-Vue-做了什么" class="headerlink" title="new Vue 做了什么"></a>new Vue 做了什么</h3><blockquote><p>这次解析，我们主要解析的版本是runtime + compiler的版本。实际项目里面runtime + compiler的情况更为常见。</p></blockquote><p><img src="http://qazwwytjl.bkt.clouddn.com/images/1592161130897.png" alt="vue/src/core/instance/index.js"></p><p>可以看到<code>new Vue</code>的时候，会执行<code>this._init()</code>函数，即运行了<code>Vue.prototype._init</code>的方法，如下图所示。</p><p><img src="http://qazwwytjl.bkt.clouddn.com/images/1592161392185.png" alt=""></p><p>初始化生命周期，声明data，props等，也是在这里面执行。</p><p><img src="http://qazwwytjl.bkt.clouddn.com/images/1592161498339.png" alt=""></p><hr><h3 id="data的初始化"><a href="#data的初始化" class="headerlink" title="data的初始化"></a>data的初始化</h3><p>data的初始化，是在上图<code>initState(vm)</code>的步骤里面去进行声明。props, methods等也是在此方法里面声明，不过此过程主要解析<code>data</code>的声明。</p><p><img src="http://qazwwytjl.bkt.clouddn.com/images/1592161657539.png" alt="vue/src/core/instance/state.js"></p><p><em>思考： 我们是怎么通过this去访问data里面声明的值？</em></p><hr><p><img src="http://qazwwytjl.bkt.clouddn.com/images/1592161932767.png" alt="vue/src/core/instance/state.js"></p><p>在initData方法里面，我们可以看到，这个函数主要做了以下处理。</p><ol><li>把<code>data</code>的值赋值给<code>vm._data</code></li><li>检测props/methods里面是否有重名</li><li>通过<code>proxy</code>函数，去把值挂载到<code>vm</code>上</li></ol><p>实现挂载的逻辑主要在<code>proxy</code>函数上，我们看下<code>proxy</code>函数的实现:</p><p><img src="http://qazwwytjl.bkt.clouddn.com/images/1592162224571.png" alt=""></p><p>其实，相对来说比较简单。只是把<code>vm[key]</code>代理到了<code>vm[&#39;_data&#39;][key]</code>上。在上面的第一步，<code>data</code>的值早已赋值给<code>vm[&#39;_data&#39;]</code>。</p><h3 id="相关代码原理实现"><a href="#相关代码原理实现" class="headerlink" title="相关代码原理实现"></a>相关代码原理实现</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">&#x2F;&#x2F;vue是怎么通过this.code 访问到data声明的code的</span><br><span class="line"></span><br><span class="line">var sharedPropertyDefinition &#x3D; &#123;</span><br><span class="line">    enumerable: true,</span><br><span class="line">    configurable: true,</span><br><span class="line">    get: () &#x3D;&gt; &#123;&#125;,</span><br><span class="line">    set: () &#x3D;&gt; &#123;&#125; </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">function proxy(vm, sourceKey, key) &#123;</span><br><span class="line">    sharedPropertyDefinition.get &#x3D; function() &#123;</span><br><span class="line">        return this[sourceKey][key]</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    sharedPropertyDefinition.set &#x3D; function (val) &#123;</span><br><span class="line">        this[sourceKey][key] &#x3D; val</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Object.defineProperty(vm, key, sharedPropertyDefinition)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 把vm的属性传给data函数使用</span><br><span class="line">function getData(fn, vm) &#123;</span><br><span class="line">    return fn.call(vm, vm)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">var vm &#x3D; &#123;</span><br><span class="line">    props: &#123;</span><br><span class="line">        b: 123</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">var data &#x3D; function() &#123;</span><br><span class="line">    console.log(&#39;vm的props&#39;);</span><br><span class="line">    console.log(this.props);</span><br><span class="line"></span><br><span class="line">    return &#123;</span><br><span class="line">        code: 1,</span><br><span class="line">        value: &#39;text&#39;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">vm._data &#x3D; getData(data, vm);</span><br><span class="line"></span><br><span class="line">console.log(&#39;vm: &#39;, JSON.stringify(vm)); &#x2F;&#x2F; vm:  &#123;&quot;props&quot;:&#123;&quot;b&quot;:123&#125;,&quot;_data&quot;:&#123;&quot;code&quot;:1,&quot;value&quot;:&quot;text&quot;&#125;&#125;</span><br><span class="line"></span><br><span class="line">proxy(vm, &#39;_data&#39;, &#39;code&#39;);</span><br><span class="line">proxy(vm, &#39;_data&#39;, &#39;value&#39;);</span><br><span class="line"></span><br><span class="line">console.log(vm.code); &#x2F;&#x2F; &#39;1&#39;</span><br><span class="line">console.log(vm.value); &#x2F;&#x2F; &#39;text&#39;</span><br></pre></td></tr></table></figure>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;blockquote&gt;
+&lt;p&gt;最近在看vue 2.6.11 版本的源码，特意通过文档记录来整理一下知识点&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id=&quot;vue的源码目录&quot;&gt;&lt;a href=&quot;#vue的源码目录&quot; class=&quot;headerlink&quot; title=&quot;vue的
+      
+    
+    </summary>
+    
+    
+    
+  </entry>
+  
+</feed>
